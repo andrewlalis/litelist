@@ -1,0 +1,16 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/litelist-api
+litelist-api.so
+litelist-api.dylib
+litelist-api.dll
+litelist-api.a
+litelist-api.lib
+litelist-api-test-*
+*.exe
+*.pdb
+*.o
+*.obj
+*.lst
