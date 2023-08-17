@@ -4,6 +4,7 @@
 	],
 	"copyright": "Copyright © 2023, Andrew Lalis",
 	"dependencies": {
+		"botan": "~>1.13.5",
 		"d2sqlite3": "~>1.0.0",
 		"handy-httpd": "~>7.9.3",
 		"jwt": "~>0.4.0",

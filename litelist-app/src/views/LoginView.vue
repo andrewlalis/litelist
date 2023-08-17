@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import {ref} from "vue";
+import {login, type LoginError} from "@/api/auth";
+import {useAuthStore} from "@/stores/auth";
+import {useRouter} from "vue-router";
 
 const loginModel = ref({
   username: "",
   password: ""
 })
+
+const authStore = useAuthStore()
+const router = useRouter()
 
 function resetLogin() {
   loginModel.value.username = ""
@@ -13,17 +19,11 @@ function resetLogin() {
 
 async function doLogin() {
   try {
-    const response = await fetch(
-        "http://localhost:8080/login",
-        {
-          method: "POST",
-          mode: "no-cors",
-          body: JSON.stringify(loginModel.value)
-        }
-    )
-    console.log(response.json())
-  } catch (error: AxiosError) {
-    console.error(error)
+    const info = await login(loginModel.value.username, loginModel.value.password)
+    authStore.logIn(info.token, info.user)
+    await router.push("lists")
+  } catch (error: any) {
+    console.error(error.message)
   }
 }
 </script>

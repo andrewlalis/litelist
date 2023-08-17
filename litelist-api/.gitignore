@@ -14,3 +14,5 @@ litelist-api-test-*
 *.o
 *.obj
 *.lst
+
+users/

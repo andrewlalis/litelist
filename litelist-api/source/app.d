@@ -14,6 +14,7 @@ private HttpServer initServer() {
 	import handy_httpd.handlers.path_delegating_handler;
 	import handy_httpd.handlers.filtered_handler;
 	import auth;
+	import lists;
 
 	ServerConfig config = ServerConfig.defaultValues();
 	config.enableWebSockets = false;
@@ -21,20 +22,29 @@ private HttpServer initServer() {
 	config.port = 8080;
 	config.connectionQueueSize = 10;
 	config.defaultHeaders["Access-Control-Allow-Origin"] = "*";
+	config.defaultHeaders["Access-Control-Allow-Credentials"] = "true";
+	config.defaultHeaders["Vary"] = "origin";
+	config.defaultHeaders["Access-Control-Allow-Headers"] = "Authorization";
 
 
 	auto mainHandler = new PathDelegatingHandler();
 	mainHandler.addMapping(Method.GET, "/status", (ref HttpRequestContext ctx) {
 		ctx.response.writeBodyString("online");
 	});
-	mainHandler.addMapping(Method.POST, "/login", &handleLogin);
 
-	// Authenticated endpoints are protected by the TokenFilter.
-	auto authEndpoints = new PathDelegatingHandler();
-	auto authHandler = new FilteredRequestHandler(
-		authEndpoints,
-		[new TokenFilter]
-	);
+	auto optionsHandler = toHandler((ref HttpRequestContext ctx) {
+		ctx.response.setStatus(HttpStatus.OK);
+	});
+
+	mainHandler.addMapping(Method.POST, "/register", &createNewUser);
+	mainHandler.addMapping(Method.POST, "/login", &handleLogin);
+	mainHandler.addMapping(Method.GET, "/me", &getMyUser);
+	mainHandler.addMapping(Method.OPTIONS, "/**", optionsHandler);
+	mainHandler.addMapping(Method.DELETE, "/me", &deleteMyUser);
+
+	mainHandler.addMapping(Method.GET, "/lists", &getNoteLists);
+	mainHandler.addMapping(Method.POST, "/lists", &createNoteList);
+	mainHandler.addMapping(Method.DELETE, "/lists/{id}", &deleteNoteList);
 
 	return new HttpServer(mainHandler, config);
 }
