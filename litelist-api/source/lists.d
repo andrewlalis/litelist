@@ -2,6 +2,8 @@ module lists;
 
 import handy_httpd;
 import std.json;
+import std.typecons;
+import std.string;
 
 import auth;
 import data;
@@ -17,20 +19,66 @@ void getNoteLists(ref HttpRequestContext ctx) {
     ctx.response.writeBodyString(listsArray.toString(), "application/json");
 }
 
+void getNoteList(ref HttpRequestContext ctx) {
+    if (!validateAuthenticatedRequest(ctx)) return;
+    AuthContext auth = AuthContextHolder.getOrThrow();
+    ulong id = ctx.request.getPathParamAs!ulong("id");
+    Nullable!NoteList optionalList = userDataSource.getList(auth.user.username, id);
+    if (!optionalList.isNull) {
+        ctx.response.writeBodyString(serializeList(optionalList.get()).toString(), "application/json");
+    } else {
+        ctx.response.setStatus(HttpStatus.NOT_FOUND);
+    }
+}
+
 void createNoteList(ref HttpRequestContext ctx) {
     if (!validateAuthenticatedRequest(ctx)) return;
     AuthContext auth = AuthContextHolder.getOrThrow();
     JSONValue requestBody = ctx.request.readBodyAsJson();
-    string listName = requestBody.object["name"].str;
-    string description = requestBody.object["description"].str;
+    if ("name" !in requestBody.object) {
+        ctx.response.setStatus(HttpStatus.BAD_REQUEST);
+        ctx.response.writeBodyString("Missing required name for creating a new list.");
+        return;
+    }
+    string listName = strip(requestBody.object["name"].str);
+    if (listName.length < 3) {
+        ctx.response.setStatus(HttpStatus.BAD_REQUEST);
+        ctx.response.writeBodyString("List name is too short. Should be at least 3 characters.");
+    }
+    string description = null;
+    if ("description" in requestBody.object) {
+        description = strip(requestBody.object["description"].str);
+    }
     NoteList list = userDataSource.createNoteList(auth.user.username, listName, description);
     ctx.response.writeBodyString(serializeList(list).toString(), "application/json");
+}
+
+void createNote(ref HttpRequestContext ctx) {
+    if (!validateAuthenticatedRequest(ctx)) return;
+    AuthContext auth = AuthContextHolder.getOrThrow();
+    ulong listId = ctx.request.getPathParamAs!ulong("listId");
+    JSONValue requestBody = ctx.request.readBodyAsJson();
+    if ("content" !in requestBody || requestBody.object["content"].type != JSONType.STRING || requestBody.object["content"].str.length < 1) {
+        ctx.response.setStatus(HttpStatus.BAD_REQUEST);
+        ctx.response.writeBodyString("Missing string content.");
+        return;
+    }
+    string content = requestBody.object["content"].str;
+    Note note = userDataSource.createNote(auth.user.username, listId, content);
+    ctx.response.writeBodyString(serializeNote(note).toString(), "application/json");
 }
 
 void deleteNoteList(ref HttpRequestContext ctx) {
     if (!validateAuthenticatedRequest(ctx)) return;
     AuthContext auth = AuthContextHolder.getOrThrow();
     userDataSource.deleteNoteList(auth.user.username, ctx.request.getPathParamAs!ulong("id"));
+}
+
+void deleteNote(ref HttpRequestContext ctx) {
+    if (!validateAuthenticatedRequest(ctx)) return;
+    AuthContext auth = AuthContextHolder.getOrThrow();
+    ulong noteId = ctx.request.getPathParamAs!ulong("noteId");
+    userDataSource.deleteNote(auth.user.username, noteId);
 }
 
 private JSONValue serializeList(NoteList list) {

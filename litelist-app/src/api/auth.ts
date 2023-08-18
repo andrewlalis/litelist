@@ -5,6 +5,10 @@ export interface User {
     email: string
 }
 
+export function emptyUser(): User {
+    return {username: "", email: ""}
+}
+
 export interface LoginInfo {
     user: User
     token: string

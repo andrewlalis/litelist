@@ -29,20 +29,66 @@ async function doLogin() {
 </script>
 
 <template>
-<form @submit.prevent="doLogin" @reset="resetLogin">
   <h1>LiteList</h1>
-  <label>
-    Username:
-    <input type="text" name="username" required v-model="loginModel.username"/>
-  </label>
-  <label>
-    Password:
-    <input type="password" name="password" required v-model="loginModel.password"/>
-  </label>
-  <button type="submit">Submit</button>
-</form>
+  <form @submit.prevent="doLogin" @reset="resetLogin">
+    <div class="form-row">
+      <label for="username-input">Username</label>
+      <input
+          id="username-input"
+          type="text"
+          name="username"
+          required
+          v-model="loginModel.username"
+          minlength="3"
+      />
+    </div>
+    <div class="form-row">
+      <label for="password-input">Password</label>
+      <input
+          id="password-input"
+          type="password"
+          name="password"
+          required
+          v-model="loginModel.password"
+          minlength="8"
+      />
+    </div>
+    <div class="form-row">
+      <button type="submit">Login</button>
+    </div>
+  </form>
 </template>
 
 <style scoped>
+h1 {
+  text-align: center;
+}
+
+form {
+  max-width: 50ch;
+  margin: 0 auto;
+  background-color: #efefef;
+  padding: 1rem;
+  border: 3px solid black;
+  border-radius: 1em;
+}
+
+.form-row {
+  margin: 1rem 0;
+}
+
+.form-row label {
+  display: block;
+}
+
+.form-row input {
+  width: 75%;
+  padding: 0.5rem;
+  font-size: large;
+}
+
+.form-row button {
+  font-size: medium;
+}
 
 </style>

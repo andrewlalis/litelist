@@ -14,6 +14,9 @@ static UserDataSource userDataSource;
 
 static this() {
     userDataSource = new FsSqliteDataSource();
+    import slf4d;
+    import d2sqlite3.library;
+    infoF!"Sqlite version %s"(versionString());
 }
 
 struct User {
@@ -42,9 +45,12 @@ interface UserDataSource {
     void deleteUser(string username);
     Nullable!User getUser(string username);
     NoteList[] getLists(string username);
+    Nullable!NoteList getList(string username, ulong id);
     NoteList createNoteList(string username, string name, string description = null);
     void deleteNoteList(string username, ulong id);
+    NoteList updateNoteList(string username, ulong id, NoteList newData);
     Note createNote(string username, ulong noteListId, string content);
+    Note updateNote(string username, ulong id, Note newData);
     void deleteNote(string username, ulong id);
 }
 
@@ -107,13 +113,26 @@ class FsSqliteDataSource : UserDataSource {
         return lists;
     }
 
+    Nullable!NoteList getList(string username, ulong id) {
+        Database db = getDb(username);
+        ResultRange results = db.execute("SELECT * FROM note_list WHERE id = ?", id);
+        if (results.empty()) return Nullable!NoteList.init;
+        NoteList list = parseNoteList(results.front());
+        ResultRange noteResults = db.execute("SELECT * FROM note WHERE note_list_id = ? ORDER BY ordinality ASC", id);
+        foreach (Row row; noteResults) {
+            list.notes ~= parseNote(row);
+        }
+        return nullable(list);
+    }
+
     NoteList createNoteList(string username, string name, string description = null) {
         Database db = getDb(username);
-        
         Statement existsStatement = db.prepare("SELECT COUNT(name) FROM note_list WHERE name = ?");
         existsStatement.bind(1, name);
         ResultRange existsResult = existsStatement.execute();
-        if (existsResult.oneValue!int() > 0) throw new HttpStatusException(HttpStatus.BAD_REQUEST, "List already exists.");
+        if (existsResult.oneValue!int() > 0) {
+            throw new HttpStatusException(HttpStatus.BAD_REQUEST, "List already exists.");
+        }
         
         Nullable!uint ordResult = db.execute("SELECT MAX(ordinality) + 1 FROM note_list").oneValue!(Nullable!uint);
         uint ordinality = 0;
@@ -128,12 +147,47 @@ class FsSqliteDataSource : UserDataSource {
 
     void deleteNoteList(string username, ulong id) {
         Database db = getDb(username);
-        Statement stmt1 = db.prepare("DELETE FROM note WHERE note_list_id = ?");
-        stmt1.bind(1, id);
-        stmt1.execute();
-        Statement stmt2 = db.prepare("DELETE FROM note_list WHERE id = ?");
-        stmt2.bind(1, id);
-        stmt2.execute();
+        db.begin();
+        db.execute("DELETE FROM note WHERE note_list_id = ?", id);
+        Nullable!uint ordinality = db.execute(
+            "SELECT ordinality FROM note_list WHERE id = ?", id
+        ).oneValue!(Nullable!uint)();
+        db.execute("DELETE FROM note_list WHERE id = ?", id);
+        if (!ordinality.isNull) {
+            db.execute("UPDATE note_list SET ordinality = ordinality - 1 WHERE ordinality > ?", ordinality.get);
+        }
+        db.commit();
+    }
+
+    NoteList updateNoteList(string username, ulong id, NoteList newData) {
+        Database db = getDb(username);
+        ResultRange result = db.execute("SELECT * FROM note_list WHERE id = ?", id);
+        if (result.empty()) throw new HttpStatusException(HttpStatus.NOT_FOUND);
+        NoteList list = parseNoteList(result.front());
+        db.begin();
+        if (list.ordinality != newData.ordinality) {
+            if (newData.ordinality > list.ordinality) {
+                // Decrement all lists between the old index and the new one.
+                db.execute(
+                    "UPDATE note_list SET ordinality = ordinality - 1 WHERE ordinality > ? AND ordinality <= ?",
+                    list.ordinality,
+                    newData.ordinality
+                );
+            } else {
+                // Increment all lists between the old index and the new one.
+                db.execute(
+                    "UPDATE note_list SET ordinality = ordinality + 1 WHERE ordinality >= ? AND ordinality < ?",
+                    newData.ordinality,
+                    list.ordinality
+                );
+            }
+        }
+        db.execute(
+            "UPDATE note_list SET name = ?, description = ?, ordinality = ? WHERE id = ?",
+            newData.name, newData.description, newData.ordinality, id
+        );
+        db.commit();
+        return NoteList(id, newData.name, newData.ordinality, newData.description, []);
     }
 
     Note createNote(string username, ulong noteListId, string content) {
@@ -158,11 +212,50 @@ class FsSqliteDataSource : UserDataSource {
         );
     }
 
+    Note updateNote(string username, ulong id, Note newData) {
+        Database db = getDb(username);
+        ResultRange result = db.execute("SELECT * FROM note WHERE id = ?", id);
+        if (result.empty()) throw new HttpStatusException(HttpStatus.NOT_FOUND);
+        Note note = parseNote(result.front());
+        db.begin();
+        if (note.ordinality != newData.ordinality) {
+            if (newData.ordinality > note.ordinality) {
+                // Decrement all notes between the old index and the new one.
+                db.execute(
+                    "UPDATE note SET ordinality = ordinality - 1 WHERE ordinality > ? AND ordinality <= ?",
+                    note.ordinality,
+                    newData.ordinality
+                );
+            } else {
+                // Increment all notes between the old index and the new one.
+                db.execute(
+                    "UPDATE note SET ordinality = ordinality + 1 WHERE ordinality >= ? AND ordinality < ?",
+                    newData.ordinality,
+                    note.ordinality
+                );
+            }
+        }
+        db.execute(
+            "UPDATE note SET ordinality = ?, content = ? WHERE id = ?",
+            newData.ordinality,
+            newData.content,
+            id
+        );
+        db.commit();
+        return Note(id, note.noteListId, newData.ordinality, newData.content);
+    }
+
     void deleteNote(string username, ulong id) {
         Database db = getDb(username);
-        Statement stmt = db.prepare("DELETE FROM note WHERE id = ?");
-        stmt.bind(1, id);
-        stmt.execute();
+        db.begin();
+        Nullable!uint ordinality = db.execute(
+            "SELECT ordinality FROM note WHERE id = ?", id
+        ).oneValue!(Nullable!uint)();
+        db.execute("DELETE FROM note WHERE id = ?", id);
+        if (!ordinality.isNull) {
+            db.execute("UPDATE note SET ordinality = ordinality - 1 WHERE ordinality > ?", ordinality.get);
+        }
+        db.commit();
     }
 
     private NoteList parseNoteList(Row row) {

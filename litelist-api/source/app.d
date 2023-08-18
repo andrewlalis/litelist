@@ -4,6 +4,7 @@ import slf4d.default_provider;
 
 void main() {
 	auto provider = new shared DefaultProvider(true, Levels.INFO);
+	provider.getLoggerFactory().setModuleLevelPrefix("handy_httpd", Levels.WARN);
 	configureLoggingProvider(provider);
 
 	HttpServer server = initServer();
@@ -23,6 +24,7 @@ private HttpServer initServer() {
 	config.connectionQueueSize = 10;
 	config.defaultHeaders["Access-Control-Allow-Origin"] = "*";
 	config.defaultHeaders["Access-Control-Allow-Credentials"] = "true";
+	config.defaultHeaders["Access-Control-Allow-Methods"] = "*";
 	config.defaultHeaders["Vary"] = "origin";
 	config.defaultHeaders["Access-Control-Allow-Headers"] = "Authorization";
 
@@ -44,7 +46,10 @@ private HttpServer initServer() {
 
 	mainHandler.addMapping(Method.GET, "/lists", &getNoteLists);
 	mainHandler.addMapping(Method.POST, "/lists", &createNoteList);
+	mainHandler.addMapping(Method.GET, "/lists/{id}", &getNoteList);
 	mainHandler.addMapping(Method.DELETE, "/lists/{id}", &deleteNoteList);
+	mainHandler.addMapping(Method.POST, "/lists/{listId}/notes", &createNote);
+	mainHandler.addMapping(Method.DELETE, "/lists/{listId}/notes/{noteId}", &deleteNote);
 
 	return new HttpServer(mainHandler, config);
 }
