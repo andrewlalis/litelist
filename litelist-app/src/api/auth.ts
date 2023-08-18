@@ -38,16 +38,32 @@ export async function login(username: string, password: string): Promise<LoginIn
     if (response.ok) {
         const content: LoginTokenResponse = await response.json()
         const token = content.token
-        const userResponse = await fetch(API_URL + "/me", {
-            headers: {
-                "Authorization": "Bearer " + token
-            }
-        })
-        const user: User = await userResponse.json()
+        const user = await getMyUser(token)
         return {token: token, user: user}
     } else if (response.status < 500) {
         throw {message: "Invalid credentials."}
     } else {
         throw {message: "Server error. Try again later."}
     }
+}
+
+export async function getMyUser(token: string): Promise<User> {
+    const userResponse = await fetch(API_URL + "/me", {
+        headers: {
+            "Authorization": "Bearer " + token
+        }
+    })
+    if (userResponse.ok) return await userResponse.json()
+    throw userResponse
+}
+
+export async function renewToken(token: string): Promise<string> {
+    const response = await fetch(API_URL + "/renew-token", {
+        headers: {"Authorization": "Bearer " + token}
+    })
+    if (response.ok) {
+        const content: LoginTokenResponse = await response.json()
+        return content.token
+    }
+    throw response
 }

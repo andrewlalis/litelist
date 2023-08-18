@@ -1,0 +1,13 @@
+[Unit]
+Description=litelist-api
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/litelist
+ExecStart=/opt/litelist/litelist-api
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

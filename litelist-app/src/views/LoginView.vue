@@ -20,8 +20,7 @@ function resetLogin() {
 async function doLogin() {
   try {
     const info = await login(loginModel.value.username, loginModel.value.password)
-    authStore.logIn(info.token, info.user)
-    await router.push("lists")
+    await authStore.logIn(info.token, info.user)
   } catch (error: any) {
     console.error(error.message)
   }

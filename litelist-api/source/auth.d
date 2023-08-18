@@ -44,6 +44,15 @@ void handleLogin(ref HttpRequestContext ctx) {
     ctx.response.writeBodyString(resp.toString(), "application/json");
 }
 
+void renewToken(ref HttpRequestContext ctx) {
+    if (!validateAuthenticatedRequest(ctx)) return;
+    AuthContext auth = AuthContextHolder.getOrThrow();
+
+    JSONValue resp = JSONValue(string[string].init);
+    resp.object["token"] = generateToken(auth.user);
+    ctx.response.writeBodyString(resp.toString(), "application/json");
+}
+
 void createNewUser(ref HttpRequestContext ctx) {
     JSONValue userData = ctx.request.readBodyAsJson();
     string username = userData.object["username"].str;

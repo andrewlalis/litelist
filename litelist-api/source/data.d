@@ -14,9 +14,6 @@ static UserDataSource userDataSource;
 
 static this() {
     userDataSource = new FsSqliteDataSource();
-    import slf4d;
-    import d2sqlite3.library;
-    infoF!"Sqlite version %s"(versionString());
 }
 
 struct User {
@@ -62,7 +59,7 @@ class FsSqliteDataSource : UserDataSource {
     User createUser(string username, string email, string passwordHash) {
         string dirPath = buildPath(USERS_DIR, username);
         if (exists(dirPath)) throw new Exception("User already has a directory.");
-        mkdir(dirPath);
+        mkdirRecurse(dirPath);
         string dataPath = buildPath(dirPath, DATA_FILE);
         JSONValue userObj = JSONValue(string[string].init);
         userObj.object["username"] = username;

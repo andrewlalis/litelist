@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import {useAuthStore} from "@/stores/auth";
-import {onMounted, ref, type Ref} from "vue";
+import {nextTick, onMounted, ref, type Ref} from "vue";
 import type {NoteList} from "@/api/lists";
 import {createNoteList, getNoteLists} from "@/api/lists";
 import {useRouter} from "vue-router";
 import {stringToColor} from "@/util";
+import LogOutButton from "@/components/LogOutButton.vue";
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -26,6 +27,12 @@ function toggleCreatingNewList() {
     newListModel.value.description = ""
   }
   creatingNewList.value = !creatingNewList.value
+  if (creatingNewList.value) {
+    nextTick(() => {
+      const nameField: HTMLElement | null = document.getElementById("list-name")
+      if (nameField) nameField.focus()
+    })
+  }
 }
 
 async function goToList(id: number) {
@@ -33,12 +40,12 @@ async function goToList(id: number) {
 }
 
 async function createList() {
-  const noteList = await createNoteList(
+  await createNoteList(
       authStore.token,
       newListModel.value.name,
       newListModel.value.description
   )
-  await router.push("/lists/" + noteList.id)
+  noteLists.value = await getNoteLists(authStore.token)
 }
 </script>
 
@@ -75,6 +82,10 @@ async function createList() {
   >
     <h3 v-text="list.name"></h3>
     <p v-text="list.description"></p>
+  </div>
+
+  <div>
+    <LogOutButton/>
   </div>
 </template>
 

@@ -3,6 +3,7 @@
 	"versions": {
 		"botan": "1.13.5",
 		"botan-math": "1.0.4",
+		"d-properties": "1.0.4",
 		"d2sqlite3": "1.0.0",
 		"handy-httpd": "7.9.3",
 		"httparsed": "1.2.1",

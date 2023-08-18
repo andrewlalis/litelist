@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type {NoteList} from "@/api/lists";
-import {onMounted, ref, type Ref} from "vue";
+import {nextTick, onMounted, ref, type Ref} from "vue";
 import {useAuthStore} from "@/stores/auth";
 import {createNote, deleteNote, deleteNoteList, getNoteList} from "@/api/lists";
 import {useRoute, useRouter} from "vue-router";
@@ -14,7 +14,8 @@ const creatingNote: Ref<boolean> = ref(false)
 const newNoteText: Ref<string> = ref("")
 
 onMounted(async () => {
-  const listId = parseInt(route.params.id)
+  let listId: number | null = null;
+  if (!Array.isArray(route.params.id)) listId = parseInt(route.params.id)
   // If no valid list id could be found, go back.
   if (!listId) {
     await router.push("/lists")
@@ -34,15 +35,15 @@ async function deleteNoteAndRefresh(id: number) {
 }
 
 async function deleteList(id: number) {
-  const dialog: HTMLDialogElement = document.getElementById("list-delete-dialog")
+  const dialog = document.getElementById("list-delete-dialog") as HTMLDialogElement
   dialog.showModal()
-  const confirmButton: HTMLButtonElement = document.getElementById("delete-confirm-button")
+  const confirmButton = document.getElementById("delete-confirm-button") as HTMLButtonElement
   confirmButton.onclick = async () => {
     dialog.close()
     await deleteNoteList(authStore.token, id)
     await router.push("/lists")
   }
-  const cancelButton: HTMLButtonElement = document.getElementById("delete-cancel-button")
+  const cancelButton = document.getElementById("delete-cancel-button") as HTMLButtonElement
   cancelButton.onclick = async () => {
     dialog.close()
   }
@@ -53,6 +54,12 @@ function toggleCreatingNewNote() {
     newNoteText.value = ""
   }
   creatingNote.value = !creatingNote.value
+  if (creatingNote.value) {
+    nextTick(() => {
+      const noteInput = document.getElementById("note-content")
+      if (noteInput) noteInput.focus()
+    })
+  }
 }
 
 async function createNoteAndRefresh() {
