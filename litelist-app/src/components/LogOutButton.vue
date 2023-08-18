@@ -9,19 +9,12 @@ async function doLogOut() {
 </script>
 
 <template>
-  <div class="button-container">
-    <button @click="doLogOut()">
-      Log Out
-    </button>
-  </div>
+  <button @click="doLogOut()">
+    Log Out
+  </button>
 </template>
 
 <style scoped>
-.button-container {
-  max-width: 50ch;
-  margin: 0 auto;
-}
-
 button {
   font-size: medium;
 }

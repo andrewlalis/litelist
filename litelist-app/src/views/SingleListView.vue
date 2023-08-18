@@ -4,6 +4,8 @@ import {nextTick, onMounted, ref, type Ref} from "vue";
 import {useAuthStore} from "@/stores/auth";
 import {createNote, deleteNote, deleteNoteList, getNoteList} from "@/api/lists";
 import {useRoute, useRouter} from "vue-router";
+import PageContainer from "@/components/PageContainer.vue";
+import LogOutButton from "@/components/LogOutButton.vue";
 
 const authStore = useAuthStore()
 const route = useRoute()
@@ -72,7 +74,7 @@ async function createNoteAndRefresh() {
 </script>
 
 <template>
-  <div v-if="list">
+  <PageContainer v-if="list">
     <header>
       <h1 v-text="list.name"></h1>
       <p><em v-text="list.description"></em></p>
@@ -81,10 +83,11 @@ async function createNoteAndRefresh() {
         <button @click="deleteList(list.id)">
           Delete this List
         </button>
+        <button @click="router.push('/lists')">All Lists</button>
       </div>
     </header>
 
-    <form v-if="creatingNote" @submit.prevent="createNoteAndRefresh()" class="new-note-form">
+    <form v-if="creatingNote" @submit.prevent="createNoteAndRefresh()">
       <div class="form-row">
         <label for="note-content">Text</label>
         <input type="text" id="note-content" required minlength="1" v-model="newNoteText"/>
@@ -104,29 +107,26 @@ async function createNoteAndRefresh() {
           @click="deleteNoteAndRefresh(note.id)"
       />
     </div>
-  </div>
 
-  <dialog id="list-delete-dialog">
-    <form method="dialog">
-      <p>
-        Are you sure you want to delete this list? All notes in it will be deleted.
-      </p>
-      <div>
-        <button id="delete-cancel-button" value="cancel" formmethod="dialog">Cancel</button>
-        <button id="delete-confirm-button" value="default">Confirm</button>
-      </div>
-    </form>
-  </dialog>
+    <LogOutButton/>
+
+    <dialog id="list-delete-dialog">
+      <form method="dialog">
+        <p>
+          Are you sure you want to delete this list? All notes in it will be deleted.
+        </p>
+        <div>
+          <button id="delete-cancel-button" value="cancel" formmethod="dialog">Cancel</button>
+          <button id="delete-confirm-button" value="default">Confirm</button>
+        </div>
+      </form>
+    </dialog>
+  </PageContainer>
 </template>
 
 <style scoped>
 h1 {
   text-align: center;
-}
-
-header {
-  max-width: 50ch;
-  margin: 0 auto;
 }
 
 .buttons-list button {
@@ -135,30 +135,31 @@ header {
 }
 
 .note-item {
-  max-width: 50ch;
-  margin: 1rem auto;
-  border-bottom: 1px solid black;
+  margin: 1rem 0;
   position: relative;
+  background-color: #fff2bd;
+  color: #212121;
+  font-size: large;
+  padding: 0.5rem;
+  min-height: 40px;
+  box-shadow: 2px 2px 4px 1px black;
 }
 
 .note-item-text {
   width: 90%;
+  margin: 0;
 }
 
 .trash-button {
-  width: 32px;
+  width: 24px;
   position: absolute;
-  top: 0;
-  right: 0;
+  top: 5px;
+  right: 5px;
 }
 
 .trash-button:hover {
-  cursor: pointer
-}
-
-.new-note-form {
-  max-width: 50ch;
-  margin: 0 auto;
+  cursor: pointer;
+  background-color: lightgray;
 }
 
 .form-row {
@@ -167,5 +168,17 @@ header {
 
 .form-row label {
   display: block;
+}
+
+.form-row input {
+  font-size: medium;
+  padding: 0.25rem;
+  box-sizing: border-box;
+}
+
+@media(max-width: 480px) {
+  .form-row input {
+    width: 100%;
+  }
 }
 </style>

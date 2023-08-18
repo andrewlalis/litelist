@@ -3,6 +3,7 @@ import {ref} from "vue";
 import {login, type LoginError} from "@/api/auth";
 import {useAuthStore} from "@/stores/auth";
 import {useRouter} from "vue-router";
+import PageContainer from "@/components/PageContainer.vue";
 
 const loginModel = ref({
   username: "",
@@ -28,34 +29,36 @@ async function doLogin() {
 </script>
 
 <template>
-  <h1>LiteList</h1>
-  <form @submit.prevent="doLogin" @reset="resetLogin">
-    <div class="form-row">
-      <label for="username-input">Username</label>
-      <input
-          id="username-input"
-          type="text"
-          name="username"
-          required
-          v-model="loginModel.username"
-          minlength="3"
-      />
-    </div>
-    <div class="form-row">
-      <label for="password-input">Password</label>
-      <input
-          id="password-input"
-          type="password"
-          name="password"
-          required
-          v-model="loginModel.password"
-          minlength="8"
-      />
-    </div>
-    <div class="form-row">
-      <button type="submit">Login</button>
-    </div>
-  </form>
+  <PageContainer>
+    <h1>LiteList</h1>
+    <form @submit.prevent="doLogin" @reset="resetLogin">
+      <div class="form-row">
+        <label for="username-input">Username</label>
+        <input
+            id="username-input"
+            type="text"
+            name="username"
+            required
+            v-model="loginModel.username"
+            minlength="3"
+        />
+      </div>
+      <div class="form-row">
+        <label for="password-input">Password</label>
+        <input
+            id="password-input"
+            type="password"
+            name="password"
+            required
+            v-model="loginModel.password"
+            minlength="8"
+        />
+      </div>
+      <div class="form-row">
+        <button type="submit">Login</button>
+      </div>
+    </form>
+  </PageContainer>
 </template>
 
 <style scoped>
@@ -81,13 +84,16 @@ form {
 }
 
 .form-row input {
-  width: 75%;
-  padding: 0.5rem;
+  width: 30ch;
+  padding: 0.25rem;
   font-size: large;
+  box-sizing: border-box;
 }
 
-.form-row button {
-  font-size: medium;
+@media (max-width: 480px) {
+  .form-row input {
+    width: 100%;
+  }
 }
 
 </style>
