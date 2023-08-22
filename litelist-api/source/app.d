@@ -57,9 +57,7 @@ private HttpServer initServer() {
 	immutable string API_PATH = "/api";
 
 	auto mainHandler = new PathDelegatingHandler();
-	mainHandler.addMapping(Method.GET, API_PATH ~ "/status", (ref HttpRequestContext ctx) {
-		ctx.response.writeBodyString("online");
-	});
+	mainHandler.addMapping(Method.GET, API_PATH ~ "/status", &handleStatus);
 
 	auto optionsHandler = toHandler((ref HttpRequestContext ctx) {
 		ctx.response.setStatus(HttpStatus.OK);
@@ -81,4 +79,17 @@ private HttpServer initServer() {
 	mainHandler.addMapping(Method.OPTIONS, API_PATH ~ "/**", optionsHandler);
 
 	return new HttpServer(mainHandler, config);
+}
+
+void handleStatus(ref HttpRequestContext ctx) {
+	import resusage;
+	import std.process;
+	import std.json;
+
+	immutable int pId = thisProcessID();
+	ProcessMemInfo procInfo = processMemInfo(pId);
+	JSONValue data = JSONValue(string[string].init);
+	data.object["virtualMemory"] = JSONValue(procInfo.usedVirtMem);
+	data.object["physicalMemory"] = JSONValue(procInfo.usedRAM);
+	ctx.response.writeBodyString(data.toString(), "application/json");
 }
