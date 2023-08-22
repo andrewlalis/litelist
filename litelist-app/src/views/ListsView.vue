@@ -62,10 +62,11 @@ function getListItemStyle(list: NoteList) {
   <PageContainer>
     <header>
       <h1>Lists</h1>
-      <div>
+      <div class="buttons-list">
         <button @click="toggleCreatingNewList()">
           Create New List
         </button>
+        <LogOutButton/>
       </div>
     </header>
 
@@ -93,16 +94,16 @@ function getListItemStyle(list: NoteList) {
       <h3 v-text="list.name"></h3>
       <p v-text="list.description"></p>
     </div>
-
-    <div>
-      <LogOutButton/>
-    </div>
   </PageContainer>
 </template>
 
 <style scoped>
 h1 {
   text-align: center;
+}
+
+.buttons-list button {
+  margin-right: 1rem;
 }
 
 .note-list-item {
@@ -121,6 +122,7 @@ h1 {
 
 .note-list-item h3 {
   margin: 0;
+  font-size: xx-large;
 }
 
 .note-list-item p {

@@ -1,17 +1,19 @@
-module lists;
+module endpoints.lists;
 
 import handy_httpd;
+
 import std.json;
 import std.typecons;
 import std.string;
 
 import auth;
-import data;
+import data.list;
+import data.note;
 
 void getNoteLists(ref HttpRequestContext ctx) {
-    if (!validateAuthenticatedRequest(ctx)) return;
+    if (!validateAuthenticatedRequest(ctx, loadTokenSecret())) return;
     AuthContext auth = AuthContextHolder.getOrThrow();
-    NoteList[] lists = userDataSource.getLists(auth.user.username);
+    NoteList[] lists = noteListDataSource.getLists(auth.user.username);
     JSONValue listsArray = JSONValue(string[].init);
     foreach (NoteList list; lists) {
         listsArray.array ~= serializeList(list);
@@ -20,10 +22,10 @@ void getNoteLists(ref HttpRequestContext ctx) {
 }
 
 void getNoteList(ref HttpRequestContext ctx) {
-    if (!validateAuthenticatedRequest(ctx)) return;
+    if (!validateAuthenticatedRequest(ctx, loadTokenSecret())) return;
     AuthContext auth = AuthContextHolder.getOrThrow();
     ulong id = ctx.request.getPathParamAs!ulong("id");
-    Nullable!NoteList optionalList = userDataSource.getList(auth.user.username, id);
+    Nullable!NoteList optionalList = noteListDataSource.getList(auth.user.username, id);
     if (!optionalList.isNull) {
         ctx.response.writeBodyString(serializeList(optionalList.get()).toString(), "application/json");
     } else {
@@ -32,7 +34,7 @@ void getNoteList(ref HttpRequestContext ctx) {
 }
 
 void createNoteList(ref HttpRequestContext ctx) {
-    if (!validateAuthenticatedRequest(ctx)) return;
+    if (!validateAuthenticatedRequest(ctx, loadTokenSecret())) return;
     AuthContext auth = AuthContextHolder.getOrThrow();
     JSONValue requestBody = ctx.request.readBodyAsJson();
     if ("name" !in requestBody.object) {
@@ -49,36 +51,40 @@ void createNoteList(ref HttpRequestContext ctx) {
     if ("description" in requestBody.object) {
         description = strip(requestBody.object["description"].str);
     }
-    NoteList list = userDataSource.createNoteList(auth.user.username, listName, description);
+    NoteList list = noteListDataSource.createNoteList(auth.user.username, listName, description);
     ctx.response.writeBodyString(serializeList(list).toString(), "application/json");
 }
 
 void createNote(ref HttpRequestContext ctx) {
-    if (!validateAuthenticatedRequest(ctx)) return;
+    if (!validateAuthenticatedRequest(ctx, loadTokenSecret())) return;
     AuthContext auth = AuthContextHolder.getOrThrow();
     ulong listId = ctx.request.getPathParamAs!ulong("listId");
     JSONValue requestBody = ctx.request.readBodyAsJson();
-    if ("content" !in requestBody || requestBody.object["content"].type != JSONType.STRING || requestBody.object["content"].str.length < 1) {
+    if (
+        "content" !in requestBody ||
+        requestBody.object["content"].type != JSONType.STRING ||
+        requestBody.object["content"].str.length < 1
+    ) {
         ctx.response.setStatus(HttpStatus.BAD_REQUEST);
         ctx.response.writeBodyString("Missing string content.");
         return;
     }
     string content = requestBody.object["content"].str;
-    Note note = userDataSource.createNote(auth.user.username, listId, content);
+    Note note = noteDataSource.createNote(auth.user.username, listId, content);
     ctx.response.writeBodyString(serializeNote(note).toString(), "application/json");
 }
 
 void deleteNoteList(ref HttpRequestContext ctx) {
-    if (!validateAuthenticatedRequest(ctx)) return;
+    if (!validateAuthenticatedRequest(ctx, loadTokenSecret())) return;
     AuthContext auth = AuthContextHolder.getOrThrow();
-    userDataSource.deleteNoteList(auth.user.username, ctx.request.getPathParamAs!ulong("id"));
+    noteListDataSource.deleteNoteList(auth.user.username, ctx.request.getPathParamAs!ulong("id"));
 }
 
 void deleteNote(ref HttpRequestContext ctx) {
-    if (!validateAuthenticatedRequest(ctx)) return;
+    if (!validateAuthenticatedRequest(ctx, loadTokenSecret())) return;
     AuthContext auth = AuthContextHolder.getOrThrow();
     ulong noteId = ctx.request.getPathParamAs!ulong("noteId");
-    userDataSource.deleteNote(auth.user.username, noteId);
+    noteDataSource.deleteNote(auth.user.username, noteId);
 }
 
 private JSONValue serializeList(NoteList list) {

@@ -47,6 +47,15 @@ export async function login(username: string, password: string): Promise<LoginIn
     }
 }
 
+export async function register(username: string, email: string, password: string): Promise<void> {
+    const response = await fetch(API_URL + "/register", {
+        method: "POST",
+        body: JSON.stringify({username: username, email: email, password: password})
+    })
+    if (response.ok) return;
+    throw response
+}
+
 export async function getMyUser(token: string): Promise<User> {
     const userResponse = await fetch(API_URL + "/me", {
         headers: {

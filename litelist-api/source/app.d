@@ -11,12 +11,16 @@ void main() {
 	server.start();
 }
 
+/**
+ * Initializes the HTTP server that this app will run.
+ * Returns: The HTTP server to use.
+ */
 private HttpServer initServer() {
 	import handy_httpd.handlers.path_delegating_handler;
 	import handy_httpd.handlers.filtered_handler;
 	import d_properties;
-	import auth;
-	import lists;
+	import endpoints.auth;
+	import endpoints.lists;
 	import std.file;
 	import std.conv;
 
@@ -24,6 +28,7 @@ private HttpServer initServer() {
 	config.enableWebSockets = false;
 	config.workerPoolSize = 3;
 	config.connectionQueueSize = 10;
+	bool useCorsHeaders = true;
 	if (exists("application.properties")) {
 		Properties props = Properties("application.properties");
 		if (props.has("port")) {
@@ -35,14 +40,19 @@ private HttpServer initServer() {
 		if (props.has("hostname")) {
 			config.hostname = props.get("hostname");
 		}
+		if (props.has("useCorsHeaders")) {
+			useCorsHeaders = props.get("useCorsHeaders").to!bool;
+		}
 	}
 
-	// Set some CORS headers to prevent headache.
-	config.defaultHeaders["Access-Control-Allow-Origin"] = "*";
-	config.defaultHeaders["Access-Control-Allow-Credentials"] = "true";
-	config.defaultHeaders["Access-Control-Allow-Methods"] = "*";
-	config.defaultHeaders["Vary"] = "origin";
-	config.defaultHeaders["Access-Control-Allow-Headers"] = "Authorization";
+	if (useCorsHeaders) {
+		// Set some CORS headers to prevent headache.
+		config.defaultHeaders["Access-Control-Allow-Origin"] = "*";
+		config.defaultHeaders["Access-Control-Allow-Credentials"] = "true";
+		config.defaultHeaders["Access-Control-Allow-Methods"] = "*";
+		config.defaultHeaders["Vary"] = "origin";
+		config.defaultHeaders["Access-Control-Allow-Headers"] = "Authorization";
+	}
 
 	immutable string API_PATH = "/api";
 

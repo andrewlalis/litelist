@@ -1,94 +1,25 @@
+/**
+ * Logic for user authentication.
+ */
 module auth;
 
 import handy_httpd;
 import handy_httpd.handlers.filtered_handler;
-import jwt.jwt;
-import jwt.algorithms;
 import slf4d;
 
-import std.datetime;
-import std.json;
-import std.path;
-import std.file;
-import std.typecons;
+import data.user;
 
-import data;
-
-
-void handleLogin(ref HttpRequestContext ctx) {
-    JSONValue loginData = ctx.request.readBodyAsJson();
-    if ("username" !in loginData.object || "password" !in loginData.object) {
-        ctx.response.setStatus(HttpStatus.BAD_REQUEST);
-        ctx.response.writeBodyString("Invalid login request data. Expected username and password.");
-        return;
-    }
-    string username = loginData.object["username"].str;
-    infoF!"Got login request for user \"%s\"."(username);
-    string password = loginData.object["password"].str;
-    Nullable!User userNullable = userDataSource.getUser(username);
-    if (userNullable.isNull) {
-        infoF!"User \"%s\" doesn't exist."(username);
-        sendUnauthenticatedResponse(ctx.response);
-        return;
-    }
-    User user = userNullable.get();
-
-    import botan.passhash.bcrypt : checkBcrypt;
-    if (!checkBcrypt(password, user.passwordHash)) {
-        sendUnauthenticatedResponse(ctx.response);
-        return;
-    }
-
-    JSONValue resp = JSONValue(string[string].init);
-    resp.object["token"] = generateToken(user);
-    ctx.response.writeBodyString(resp.toString(), "application/json");
-}
-
-void renewToken(ref HttpRequestContext ctx) {
-    if (!validateAuthenticatedRequest(ctx)) return;
-    AuthContext auth = AuthContextHolder.getOrThrow();
-
-    JSONValue resp = JSONValue(string[string].init);
-    resp.object["token"] = generateToken(auth.user);
-    ctx.response.writeBodyString(resp.toString(), "application/json");
-}
-
-void createNewUser(ref HttpRequestContext ctx) {
-    JSONValue userData = ctx.request.readBodyAsJson();
-    string username = userData.object["username"].str;
-    string email = userData.object["email"].str;
-    string password = userData.object["password"].str;
-
-    if (!userDataSource.getUser(username).isNull) {
-        ctx.response.setStatus(HttpStatus.BAD_REQUEST);
-        ctx.response.writeBodyString("Username is taken.");
-        return;
-    }
-
-    import botan.passhash.bcrypt : generateBcrypt;
-    import botan.rng.auto_rng;
-    RandomNumberGenerator rng = new AutoSeededRNG();
-    string passwordHash = generateBcrypt(password, rng, 12);
-    
-    userDataSource.createUser(username, email, passwordHash);
-}
-
-void getMyUser(ref HttpRequestContext ctx) {
-    if (!validateAuthenticatedRequest(ctx)) return;
-    AuthContext auth = AuthContextHolder.getOrThrow();
-    JSONValue resp = JSONValue(string[string].init);
-    resp.object["username"] = JSONValue(auth.user.username);
-    resp.object["email"] = JSONValue(auth.user.email);
-    ctx.response.writeBodyString(resp.toString(), "application/json");
-}
-
-void deleteMyUser(ref HttpRequestContext ctx) {
-    if (!validateAuthenticatedRequest(ctx)) return;
-    AuthContext auth = AuthContextHolder.getOrThrow();
-    userDataSource.deleteUser(auth.user.username);
-}
-
-private string generateToken(in User user) {
+/**
+ * Generates a new access token for an authenticated user.
+ * Params:
+ *   user = The user to generate a token for.
+ *   secret = The secret key to use to sign the token.
+ * Returns: The base-64 encoded and signed token string.
+ */
+string generateToken(in User user, in string secret) {
+    import jwt.jwt : Token;
+    import jwt.algorithms : JWTAlgorithm;
+    import std.datetime;
     Token token = new Token(JWTAlgorithm.HS512);
     token.claims.aud("litelist-api");
     token.claims.sub(user.username);
@@ -97,9 +28,22 @@ private string generateToken(in User user) {
     return token.encode("supersecret");// TODO: Extract secret.
 }
 
-private void sendUnauthenticatedResponse(ref HttpResponse resp) {
+void sendUnauthenticatedResponse(ref HttpResponse resp) {
     resp.setStatus(HttpStatus.UNAUTHORIZED);
     resp.writeBodyString("Invalid credentials.");
+}
+
+string loadTokenSecret() {
+    import std.file : exists;
+    import d_properties;
+    if (exists("application.properties")) {
+        Properties props = Properties("application.properties");
+        if (props.has("secret")) {
+            return props.get("secret");
+        }
+    }
+    error("Couldn't load token secret from application.properties. Using insecure secret.");
+    return "supersecret";
 }
 
 struct AuthContext {
@@ -143,9 +87,14 @@ class AuthContextHolder {
  * Otherwise, sends an appropriate "unauthorized" response.
  * Params:
  *   ctx = The request context to validate.
+ *   secret = The secret key that should have been used to sign the token.
  * Returns: True if the user is authenticated, or false otherwise.
  */
-bool validateAuthenticatedRequest(ref HttpRequestContext ctx) {
+bool validateAuthenticatedRequest(ref HttpRequestContext ctx, in string secret) {
+    import jwt.jwt : verify, Token;
+    import jwt.algorithms : JWTAlgorithm;
+    import std.typecons;
+
     immutable HEADER_NAME = "Authorization";
     AuthContextHolder.reset();
     if (!ctx.request.hasHeader(HEADER_NAME)) {
@@ -182,7 +131,13 @@ bool validateAuthenticatedRequest(ref HttpRequestContext ctx) {
 }
 
 class TokenFilter : HttpRequestFilter {
+    private immutable string secret;
+
+    this(string secret) {
+        this.secret = secret;
+    }
+
     void apply(ref HttpRequestContext ctx, FilterChain filterChain) {
-        if (validateAuthenticatedRequest(ctx)) filterChain.doFilter(ctx);
+        if (validateAuthenticatedRequest(ctx, this.secret)) filterChain.doFilter(ctx);
     }
 }

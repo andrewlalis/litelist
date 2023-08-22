@@ -84,6 +84,7 @@ async function createNoteAndRefresh() {
           Delete this List
         </button>
         <button @click="router.push('/lists')">All Lists</button>
+        <LogOutButton/>
       </div>
     </header>
 
@@ -108,7 +109,9 @@ async function createNoteAndRefresh() {
       />
     </div>
 
-    <LogOutButton/>
+    <p v-if="list.notes.length === 0">
+      <em>There are no notes in this list.</em> <Button @click="toggleCreatingNewNote()">Add one!</Button>
+    </p>
 
     <dialog id="list-delete-dialog">
       <form method="dialog">
@@ -168,6 +171,10 @@ h1 {
 
 .form-row label {
   display: block;
+}
+
+.form-row button {
+  margin-right: 1rem;
 }
 
 .form-row input {

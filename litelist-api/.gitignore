@@ -16,3 +16,4 @@ litelist-api-test-*
 *.lst
 
 users/
+application.properties
