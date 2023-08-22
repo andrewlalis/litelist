@@ -10,6 +10,14 @@ const loginModel = ref({
   password: ""
 })
 
+const registerModel = ref({
+  username: "",
+  password: "",
+  email: "",
+  code: ""
+})
+const registering = ref(false)
+
 const authStore = useAuthStore()
 const router = useRouter()
 
@@ -31,7 +39,7 @@ async function doLogin() {
 <template>
   <PageContainer>
     <h1>LiteList</h1>
-    <form @submit.prevent="doLogin" @reset="resetLogin">
+    <form v-if="!registering" @submit.prevent="doLogin" @reset="resetLogin">
       <div class="form-row">
         <label for="username-input">Username</label>
         <input
@@ -56,6 +64,7 @@ async function doLogin() {
       </div>
       <div class="form-row">
         <button type="submit">Login</button>
+        <button type="button" @click="registering = true">Create an Account</button>
       </div>
     </form>
   </PageContainer>
@@ -88,6 +97,10 @@ form {
   padding: 0.25rem;
   font-size: large;
   box-sizing: border-box;
+}
+
+.form-row button {
+  margin-right: 0.5rem;
 }
 
 @media (max-width: 480px) {

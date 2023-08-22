@@ -14,7 +14,6 @@ void main() {
 private HttpServer initServer() {
 	import handy_httpd.handlers.path_delegating_handler;
 	import handy_httpd.handlers.filtered_handler;
-	import handy_httpd.handlers.file_resolving_handler;
 	import d_properties;
 	import auth;
 	import lists;
@@ -70,8 +69,6 @@ private HttpServer initServer() {
 	mainHandler.addMapping(Method.DELETE, API_PATH ~ "/lists/{listId}/notes/{noteId}", &deleteNote);
 
 	mainHandler.addMapping(Method.OPTIONS, API_PATH ~ "/**", optionsHandler);
-
-	mainHandler.addMapping("/**", new FileResolvingHandler("app-content", DirectoryResolutionStrategies.none));
 
 	return new HttpServer(mainHandler, config);
 }
