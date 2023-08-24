@@ -4,6 +4,7 @@ struct User {
     string username;
     string email;
     string passwordHash;
+    bool admin;
 }
 
 struct NoteList {

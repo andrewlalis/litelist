@@ -4,7 +4,7 @@ import slf4d.default_provider;
 
 void main() {
 	auto provider = new shared DefaultProvider(true, Levels.INFO);
-	// provider.getLoggerFactory().setModuleLevelPrefix("handy_httpd", Levels.WARN);
+	// provider.getLoggerFactory().setModuleLevelPrefix("handy_httpd", Levels.DEBUG);
 	configureLoggingProvider(provider);
 
 	HttpServer server = initServer();
@@ -21,8 +21,11 @@ private HttpServer initServer() {
 	import d_properties;
 	import endpoints.auth;
 	import endpoints.lists;
+	import endpoints.admin;
 	import std.file;
 	import std.conv;
+
+	import auth : TokenFilter, AdminFilter, loadTokenSecret;
 
 	ServerConfig config = ServerConfig.defaultValues();
 	config.enableWebSockets = false;
@@ -56,27 +59,41 @@ private HttpServer initServer() {
 
 	immutable string API_PATH = "/api";
 
-	auto mainHandler = new PathDelegatingHandler();
+	PathDelegatingHandler mainHandler = new PathDelegatingHandler();
 	mainHandler.addMapping(Method.GET, API_PATH ~ "/status", &handleStatus);
-
-	auto optionsHandler = toHandler((ref HttpRequestContext ctx) {
-		ctx.response.setStatus(HttpStatus.OK);
-	});
-
 	mainHandler.addMapping(Method.POST, API_PATH ~ "/register", &createNewUser);
 	mainHandler.addMapping(Method.POST, API_PATH ~ "/login", &handleLogin);
-	mainHandler.addMapping(Method.GET, API_PATH ~ "/me", &getMyUser);
-	mainHandler.addMapping(Method.DELETE, API_PATH ~ "/me", &deleteMyUser);
-	mainHandler.addMapping(Method.GET, API_PATH ~ "/renew-token", &renewToken);
+	// mainHandler.addMapping(Method.GET, API_PATH ~ "/shutdown", (ref HttpRequestContext ctx) {
+	// 	ctx.response.writeBodyString("Shutting down!");
+	// 	ctx.server.stop();
+	// });
 
-	mainHandler.addMapping(Method.GET, API_PATH ~ "/lists", &getNoteLists);
-	mainHandler.addMapping(Method.POST, API_PATH ~ "/lists", &createNoteList);
-	mainHandler.addMapping(Method.GET, API_PATH ~ "/lists/{id}", &getNoteList);
-	mainHandler.addMapping(Method.DELETE, API_PATH ~ "/lists/{id}", &deleteNoteList);
-	mainHandler.addMapping(Method.POST, API_PATH ~ "/lists/{listId}/notes", &createNote);
-	mainHandler.addMapping(Method.DELETE, API_PATH ~ "/lists/{listId}/notes/{noteId}", &deleteNote);
-
+	HttpRequestHandler optionsHandler = toHandler((ref HttpRequestContext ctx) {
+		ctx.response.setStatus(HttpStatus.OK);
+	});
 	mainHandler.addMapping(Method.OPTIONS, API_PATH ~ "/**", optionsHandler);
+
+	// Separate handler for authenticated paths, protected by a TokenFilter.
+	PathDelegatingHandler authHandler = new PathDelegatingHandler();
+	authHandler.addMapping(Method.GET, API_PATH ~ "/me", &getMyUser);
+	authHandler.addMapping(Method.DELETE, API_PATH ~ "/me", &deleteMyUser);
+	authHandler.addMapping(Method.GET, API_PATH ~ "/renew-token", &renewToken);
+
+	authHandler.addMapping(Method.GET, API_PATH ~ "/lists", &getNoteLists);
+	authHandler.addMapping(Method.POST, API_PATH ~ "/lists", &createNoteList);
+	authHandler.addMapping(Method.GET, API_PATH ~ "/lists/{id}", &getNoteList);
+	authHandler.addMapping(Method.DELETE, API_PATH ~ "/lists/{id}", &deleteNoteList);
+	authHandler.addMapping(Method.POST, API_PATH ~ "/lists/{listId}/notes", &createNote);
+	authHandler.addMapping(Method.DELETE, API_PATH ~ "/lists/{listId}/notes/{noteId}", &deleteNote);
+	HttpRequestFilter tokenFilter = new TokenFilter(loadTokenSecret());
+	HttpRequestFilter adminFilter = new AdminFilter();
+
+	// Separate handler for admin paths, protected by an AdminFilter.
+	PathDelegatingHandler adminHandler = new PathDelegatingHandler();
+	adminHandler.addMapping(Method.GET, API_PATH ~ "/admin/users", &getAllUsers);
+	mainHandler.addMapping(API_PATH ~ "/admin/**", new FilteredRequestHandler(adminHandler, [tokenFilter, adminFilter]));
+
+	mainHandler.addMapping(API_PATH ~ "/**", new FilteredRequestHandler(authHandler, [tokenFilter]));
 
 	return new HttpServer(mainHandler, config);
 }

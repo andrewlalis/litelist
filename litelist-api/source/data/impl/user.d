@@ -18,9 +18,9 @@ class FileSystemUserDataSource : UserDataSource {
         mkdirRecurse(dirPath);
         string dataPath = buildPath(dirPath, DATA_FILE);
         JSONValue userObj = JSONValue(string[string].init);
-        userObj.object["username"] = username;
-        userObj.object["email"] = email;
-        userObj.object["passwordHash"] = passwordHash;
+        userObj.object["email"] = JSONValue(email);
+        userObj.object["passwordHash"] = JSONValue(passwordHash);
+        userObj.object["admin"] = JSONValue(false);
         std.file.write(dataPath, userObj.toPrettyString());
         return User(username, email, passwordHash);
     }
@@ -35,11 +35,16 @@ class FileSystemUserDataSource : UserDataSource {
         string dataPath = buildPath(USERS_DIR, username, DATA_FILE);
         if (exists(dataPath) && isFile(dataPath)) {
             JSONValue userObj = parseJSON(strip(readText(dataPath)));
-            return nullable(User(
-                userObj.object["username"].str,
-                userObj.object["email"].str,
-                userObj.object["passwordHash"].str
-            ));
+            string email = userObj.object["email"].str;
+            string passwordHash = userObj.object["passwordHash"].str;
+            bool admin = false;
+            if ("admin" !in userObj.object) {
+                userObj.object["admin"] = JSONValue(false);
+                std.file.write(dataPath, userObj.toPrettyString());
+            } else {
+                admin = userObj.object["admin"].boolean;
+            }
+            return nullable(User(username, email, passwordHash, admin));
         }
         return Nullable!User.init;
     }

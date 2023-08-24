@@ -61,7 +61,7 @@ export const useAuthStore = defineStore("auth", () => {
             try {
                 const storedUser = await getMyUser(storedToken)
                 console.log("Logging in using stored token for user: " + storedUser.username)
-                logIn(storedToken, storedUser)
+                await logIn(storedToken, storedUser)
             } catch (e: any) {
                 console.warn("Failed to log in using stored token.", e)
             }

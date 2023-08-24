@@ -3,10 +3,11 @@ import {API_URL} from "@/api/base";
 export interface User {
     username: string
     email: string
+    admin: boolean
 }
 
 export function emptyUser(): User {
-    return {username: "", email: ""}
+    return {username: "", email: "", admin: false}
 }
 
 export interface LoginInfo {

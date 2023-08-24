@@ -11,8 +11,7 @@ import data.list;
 import data.note;
 
 void getNoteLists(ref HttpRequestContext ctx) {
-    if (!validateAuthenticatedRequest(ctx, loadTokenSecret())) return;
-    AuthContext auth = AuthContextHolder.getOrThrow();
+    AuthContext auth = getAuthContextOrThrow(ctx);
     NoteList[] lists = noteListDataSource.getLists(auth.user.username);
     JSONValue listsArray = JSONValue(string[].init);
     foreach (NoteList list; lists) {
@@ -22,8 +21,7 @@ void getNoteLists(ref HttpRequestContext ctx) {
 }
 
 void getNoteList(ref HttpRequestContext ctx) {
-    if (!validateAuthenticatedRequest(ctx, loadTokenSecret())) return;
-    AuthContext auth = AuthContextHolder.getOrThrow();
+    AuthContext auth = getAuthContextOrThrow(ctx);
     ulong id = ctx.request.getPathParamAs!ulong("id");
     Nullable!NoteList optionalList = noteListDataSource.getList(auth.user.username, id);
     if (!optionalList.isNull) {
@@ -34,8 +32,7 @@ void getNoteList(ref HttpRequestContext ctx) {
 }
 
 void createNoteList(ref HttpRequestContext ctx) {
-    if (!validateAuthenticatedRequest(ctx, loadTokenSecret())) return;
-    AuthContext auth = AuthContextHolder.getOrThrow();
+    AuthContext auth = getAuthContextOrThrow(ctx);
     JSONValue requestBody = ctx.request.readBodyAsJson();
     if ("name" !in requestBody.object) {
         ctx.response.setStatus(HttpStatus.BAD_REQUEST);
@@ -56,8 +53,7 @@ void createNoteList(ref HttpRequestContext ctx) {
 }
 
 void createNote(ref HttpRequestContext ctx) {
-    if (!validateAuthenticatedRequest(ctx, loadTokenSecret())) return;
-    AuthContext auth = AuthContextHolder.getOrThrow();
+    AuthContext auth = getAuthContextOrThrow(ctx);
     ulong listId = ctx.request.getPathParamAs!ulong("listId");
     JSONValue requestBody = ctx.request.readBodyAsJson();
     if (
@@ -75,14 +71,12 @@ void createNote(ref HttpRequestContext ctx) {
 }
 
 void deleteNoteList(ref HttpRequestContext ctx) {
-    if (!validateAuthenticatedRequest(ctx, loadTokenSecret())) return;
-    AuthContext auth = AuthContextHolder.getOrThrow();
+    AuthContext auth = getAuthContextOrThrow(ctx);
     noteListDataSource.deleteNoteList(auth.user.username, ctx.request.getPathParamAs!ulong("id"));
 }
 
 void deleteNote(ref HttpRequestContext ctx) {
-    if (!validateAuthenticatedRequest(ctx, loadTokenSecret())) return;
-    AuthContext auth = AuthContextHolder.getOrThrow();
+    AuthContext auth = getAuthContextOrThrow(ctx);
     ulong noteId = ctx.request.getPathParamAs!ulong("noteId");
     noteDataSource.deleteNote(auth.user.username, noteId);
 }

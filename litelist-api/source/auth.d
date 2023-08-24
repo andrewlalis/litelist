@@ -7,7 +7,11 @@ import handy_httpd;
 import handy_httpd.handlers.filtered_handler;
 import slf4d;
 
+import std.typecons;
+
 import data.user;
+
+immutable string AUTH_METADATA_KEY = "AuthContext";
 
 /**
  * Generates a new access token for an authenticated user.
@@ -25,7 +29,7 @@ string generateToken(in User user, in string secret) {
     token.claims.sub(user.username);
     token.claims.exp(Clock.currTime.toUnixTime() + 5000);
     token.claims.iss("litelist-api");
-    return token.encode("supersecret");// TODO: Extract secret.
+    return token.encode(secret);
 }
 
 void sendUnauthenticatedResponse(ref HttpResponse resp) {
@@ -46,39 +50,14 @@ string loadTokenSecret() {
     return "supersecret";
 }
 
-struct AuthContext {
+class AuthContext {
     string token;
     User user;
-}
 
-class AuthContextHolder {
-    private static AuthContextHolder instance;
-
-    static getInstance() {
-        if (!instance) instance = new AuthContextHolder();
-        return instance;
+    this(string token, User user) {
+        this.token = token;
+        this.user = user;
     }
-
-    static reset() {
-        auto i = getInstance();
-        i.authenticated = false;
-        i.context = AuthContext.init;
-    }
-
-    static setContext(string token, User user) {
-        auto i = getInstance();
-        i.authenticated = true;
-        i.context = AuthContext(token, user);
-    }
-
-    static AuthContext getOrThrow() {
-        auto i = getInstance();
-        if (!i.authenticated) throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "No authentication context.");
-        return i.context;
-    }
-
-    private bool authenticated;
-    private AuthContext context;
 }
 
 /**
@@ -88,46 +67,46 @@ class AuthContextHolder {
  * Params:
  *   ctx = The request context to validate.
  *   secret = The secret key that should have been used to sign the token.
- * Returns: True if the user is authenticated, or false otherwise.
+ * Returns: The AuthContext if authentication is successful, or null otherwise.
  */
-bool validateAuthenticatedRequest(ref HttpRequestContext ctx, in string secret) {
+Nullable!AuthContext validateAuthenticatedRequest(ref HttpRequestContext ctx, in string secret) {
     import jwt.jwt : verify, Token;
     import jwt.algorithms : JWTAlgorithm;
     import std.typecons;
 
     immutable HEADER_NAME = "Authorization";
-    AuthContextHolder.reset();
     if (!ctx.request.hasHeader(HEADER_NAME)) {
         ctx.response.setStatus(HttpStatus.UNAUTHORIZED);
         ctx.response.writeBodyString("Missing Authorization header.");
-        return false;
+        return Nullable!AuthContext.init;
     }
     string authHeader = ctx.request.getHeader(HEADER_NAME);
     if (authHeader.length < 7 || authHeader[0 .. 7] != "Bearer ") {
         ctx.response.setStatus(HttpStatus.UNAUTHORIZED);
         ctx.response.writeBodyString("Invalid bearer token authorization header.");
-        return false;
+        return Nullable!AuthContext.init;
     }
 
     string rawToken = authHeader[7 .. $];
     string username;
     try {
-        Token token = verify(rawToken, "supersecret", [JWTAlgorithm.HS512]);
+        Token token = verify(rawToken, secret, [JWTAlgorithm.HS512]);
         username = token.claims.sub;
     } catch (Exception e) {
         warn("Failed to verify user token.", e);
-        throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Invalid token.");
+        ctx.response.setStatus(HttpStatus.UNAUTHORIZED);
+        ctx.response.writeBodyString("Invalid or malformed token.");
+        return Nullable!AuthContext.init;
     }
 
     Nullable!User user = userDataSource.getUser(username);
     if (user.isNull) {
         ctx.response.setStatus(HttpStatus.UNAUTHORIZED);
         ctx.response.writeBodyString("User does not exist.");
-        return false;
+        return Nullable!AuthContext.init;
     }
 
-    AuthContextHolder.setContext(rawToken, user.get);
-    return true;
+    return nullable(new AuthContext(rawToken, user.get));
 }
 
 class TokenFilter : HttpRequestFilter {
@@ -138,6 +117,30 @@ class TokenFilter : HttpRequestFilter {
     }
 
     void apply(ref HttpRequestContext ctx, FilterChain filterChain) {
-        if (validateAuthenticatedRequest(ctx, this.secret)) filterChain.doFilter(ctx);
+        Nullable!AuthContext optionalAuth = validateAuthenticatedRequest(ctx, this.secret);
+        if (!optionalAuth.isNull) {
+            ctx.metadata[AUTH_METADATA_KEY] = optionalAuth.get();
+            filterChain.doFilter(ctx); // Only continue the filter chain if we're authenticated.
+        }
     }
+}
+
+class AdminFilter : HttpRequestFilter {
+    void apply(ref HttpRequestContext ctx, FilterChain filterChain) {
+        AuthContext authCtx = getAuthContextOrThrow(ctx);
+        if (authCtx.user.admin) {
+            filterChain.doFilter(ctx);
+        } else {
+            ctx.response.setStatus(HttpStatus.FORBIDDEN);
+        }
+    }
+}
+
+AuthContext getAuthContextOrThrow(ref HttpRequestContext ctx) {
+    if (AUTH_METADATA_KEY in ctx.metadata) {
+        if (auto authCtx = cast(AuthContext) ctx.metadata[AUTH_METADATA_KEY]) {
+            return authCtx;
+        }
+    }
+    throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated.");
 }

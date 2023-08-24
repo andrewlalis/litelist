@@ -42,8 +42,7 @@ void handleLogin(ref HttpRequestContext ctx) {
 }
 
 void renewToken(ref HttpRequestContext ctx) {
-    if (!validateAuthenticatedRequest(ctx, loadTokenSecret())) return;
-    AuthContext auth = AuthContextHolder.getOrThrow();
+    AuthContext auth = getAuthContextOrThrow(ctx);
 
     JSONValue resp = JSONValue(string[string].init);
     resp.object["token"] = generateToken(auth.user, loadTokenSecret());
@@ -51,10 +50,32 @@ void renewToken(ref HttpRequestContext ctx) {
 }
 
 void createNewUser(ref HttpRequestContext ctx) {
+    import std.regex;
+
     JSONValue userData = ctx.request.readBodyAsJson();
+    if ("username" !in userData.object || "email" !in userData.object || "password" !in userData.object) {
+        ctx.response.setStatus(HttpStatus.BAD_REQUEST);
+        ctx.response.writeBodyString("Missing required data.");
+        return;
+    }
+
     string username = userData.object["username"].str;
     string email = userData.object["email"].str;
     string password = userData.object["password"].str;
+
+    const ctr = ctRegex!(`^[a-zA-Z0-9][a-zA-Z0-9-_]{2,23}$`);
+    Captures!string c = matchFirst(username, ctr);
+    if (c.empty) {
+        ctx.response.setStatus(HttpStatus.BAD_REQUEST);
+        ctx.response.writeBodyString("Invalid username.");
+        return;
+    }
+
+    if (password.length < 8) {
+        ctx.response.setStatus(HttpStatus.BAD_REQUEST);
+        ctx.response.writeBodyString("Password is too short. Should be at least 8 characters.");
+        return;
+    }
 
     if (!userDataSource.getUser(username).isNull) {
         ctx.response.setStatus(HttpStatus.BAD_REQUEST);
@@ -72,16 +93,15 @@ void createNewUser(ref HttpRequestContext ctx) {
 }
 
 void getMyUser(ref HttpRequestContext ctx) {
-    if (!validateAuthenticatedRequest(ctx, loadTokenSecret())) return;
-    AuthContext auth = AuthContextHolder.getOrThrow();
+    AuthContext auth = getAuthContextOrThrow(ctx);
     JSONValue resp = JSONValue(string[string].init);
     resp.object["username"] = JSONValue(auth.user.username);
     resp.object["email"] = JSONValue(auth.user.email);
+    resp.object["admin"] = JSONValue(auth.user.admin);
     ctx.response.writeBodyString(resp.toString(), "application/json");
 }
 
 void deleteMyUser(ref HttpRequestContext ctx) {
-    if (!validateAuthenticatedRequest(ctx, loadTokenSecret())) return;
-    AuthContext auth = AuthContextHolder.getOrThrow();
+    AuthContext auth = getAuthContextOrThrow(ctx);
     userDataSource.deleteUser(auth.user.username);
 }

@@ -110,7 +110,7 @@ async function createNoteAndRefresh() {
     </div>
 
     <p v-if="list.notes.length === 0">
-      <em>There are no notes in this list.</em> <Button @click="toggleCreatingNewNote()">Add one!</Button>
+      <em>There are no notes in this list.</em> <button @click="toggleCreatingNewNote()">Add one!</button>
     </p>
 
     <dialog id="list-delete-dialog">

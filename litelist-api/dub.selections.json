@@ -3,14 +3,14 @@
 	"versions": {
 		"botan": "1.13.5",
 		"botan-math": "1.0.4",
-		"d-properties": "1.0.4",
+		"d-properties": "1.0.5",
 		"d2sqlite3": "1.0.0",
-		"handy-httpd": "7.9.3",
+		"handy-httpd": "7.10.4",
 		"httparsed": "1.2.1",
 		"jwt": "0.4.0",
 		"memutils": "1.0.9",
 		"resusage": "0.3.2",
-		"slf4d": "2.4.2",
+		"slf4d": "2.4.3",
 		"streams": "3.5.0"
 	}
 }

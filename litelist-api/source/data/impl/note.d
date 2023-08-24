@@ -41,16 +41,18 @@ class SqliteNoteDataSource : NoteDataSource {
             if (newData.ordinality > note.ordinality) {
                 // Decrement all notes between the old index and the new one.
                 db.execute(
-                    "UPDATE note SET ordinality = ordinality - 1 WHERE ordinality > ? AND ordinality <= ?",
+                    "UPDATE note SET ordinality = ordinality - 1 WHERE ordinality > ? AND ordinality <= ? AND note_list_id = ?",
                     note.ordinality,
-                    newData.ordinality
+                    newData.ordinality,
+                    note.noteListId
                 );
             } else {
                 // Increment all notes between the old index and the new one.
                 db.execute(
-                    "UPDATE note SET ordinality = ordinality + 1 WHERE ordinality >= ? AND ordinality < ?",
+                    "UPDATE note SET ordinality = ordinality + 1 WHERE ordinality >= ? AND ordinality < ? AND note_list_id = ?",
                     newData.ordinality,
-                    note.ordinality
+                    note.ordinality,
+                    note.noteListId
                 );
             }
         }
@@ -66,14 +68,27 @@ class SqliteNoteDataSource : NoteDataSource {
 
     void deleteNote(string username, ulong id) {
         Database db = getDb(username);
+        ResultRange result = db.execute("SELECT * FROM note WHERE id = ?", id);
+        if (result.empty) return;
+        Note note = parseNote(result.front);
         db.begin();
-        Nullable!uint ordinality = db.execute(
-            "SELECT ordinality FROM note WHERE id = ?", id
-        ).oneValue!(Nullable!uint)();
         db.execute("DELETE FROM note WHERE id = ?", id);
-        if (!ordinality.isNull) {
-            db.execute("UPDATE note SET ordinality = ordinality - 1 WHERE ordinality > ?", ordinality.get);
-        }
+        db.execute(
+            "UPDATE note SET ordinality = ordinality - 1 WHERE ordinality > ? AND note_list_id = ?",
+            note.ordinality,
+            note.noteListId
+        );
         db.commit();
+    }
+
+    ulong countNotes(string username) {
+        return getDb(username)
+            .execute("SELECT COUNT(id) FROM note")
+            .oneValue!ulong();
+    }
+    ulong countNotes(string username, ulong noteListId) {
+        return getDb(username)
+            .execute("SELECT COUNT(id) FROM note WHERE note_list_id = ?", noteListId)
+            .oneValue!ulong();
     }
 }

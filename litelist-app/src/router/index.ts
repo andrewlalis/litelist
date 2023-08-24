@@ -3,6 +3,7 @@ import LoginView from "@/views/LoginView.vue";
 import ListsView from "@/views/ListsView.vue";
 import {useAuthStore} from "@/stores/auth";
 import SingleListView from "@/views/SingleListView.vue";
+import AdminView from "@/views/AdminView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -31,6 +32,10 @@ const router = createRouter({
     {
       path: "/lists/:id",
       component: SingleListView
+    },
+    {
+      path: "/admin",
+      component: AdminView
     }
   ]
 })
@@ -40,11 +45,18 @@ const publicRoutes = [
     "/login"
 ]
 
+const adminRoutes = [
+    "/admin"
+]
+
 router.beforeEach(async (to, from) => {
   const authStore = useAuthStore()
   await authStore.tryLogInFromStoredToken()
   if (!publicRoutes.includes(to.path) && !authStore.authenticated) {
     return "/login" // Redirect to login page if user is trying to go to an authenticated page.
+  }
+  if (adminRoutes.includes(to.path) && !authStore.user.admin) {
+    return "/lists" // Redirect to /lists if a non-admin user tries to access an admin page.
   }
 })
 

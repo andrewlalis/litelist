@@ -102,4 +102,9 @@ class SqliteNoteListDataSource : NoteListDataSource {
         db.commit();
         return NoteList(id, newData.name, newData.ordinality, newData.description, []);
     }
+
+    ulong countLists(string username) {
+        Database db = getDb(username);
+        return db.execute("SELECT COUNT(id) FROM note_list").oneValue!ulong();
+    }
 }
