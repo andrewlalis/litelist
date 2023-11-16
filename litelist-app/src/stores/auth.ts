@@ -21,7 +21,7 @@ export const useAuthStore = defineStore("auth", () => {
         token.value = newToken
         localStorage.setItem(LOCAL_STORAGE_KEY, token.value)
         tokenRefreshInterval.value = setInterval(tryRefreshToken, 60000)
-        await router.push("/lists")
+        // await router.push("/lists")
     }
 
     async function logOut() {

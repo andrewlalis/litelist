@@ -29,6 +29,7 @@ async function doLogin() {
   try {
     const info = await login(loginModel.value.username, loginModel.value.password)
     await authStore.logIn(info.token, info.user)
+    await router.push("/lists")
   } catch (error: any) {
     console.error(error.message)
   }
@@ -45,6 +46,7 @@ async function doRegister() {
     await register(registerModel.value.username, registerModel.value.email, registerModel.value.password)
     const info = await login(registerModel.value.username, registerModel.value.password)
     await authStore.logIn(info.token, info.user)
+    await router.push("/lists")
   } catch (error: any) {
     console.error(error)
   }

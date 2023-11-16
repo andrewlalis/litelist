@@ -4,6 +4,7 @@ import ListsView from "@/views/ListsView.vue";
 import {useAuthStore} from "@/stores/auth";
 import SingleListView from "@/views/SingleListView.vue";
 import AdminView from "@/views/AdminView.vue";
+import PrintableListView from "@/views/PrintableListView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -32,6 +33,10 @@ const router = createRouter({
     {
       path: "/lists/:id",
       component: SingleListView
+    },
+    {
+      path: "/lists/:id/print",
+      component: PrintableListView
     },
     {
       path: "/admin",

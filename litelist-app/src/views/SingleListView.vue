@@ -66,13 +66,14 @@ function toggleCreatingNewNote() {
 
 async function clearList() {
   if (!list.value) return
+  const l: NoteList = list.value
   const dialog = document.getElementById("list-clear-notes-dialog") as HTMLDialogElement
   dialog.showModal()
   const confirmButton = document.getElementById("clear-notes-confirm-button") as HTMLButtonElement
   confirmButton.onclick = async () => {
     dialog.close()
-    await deleteAllNotes(authStore.token, list.value.id)
-    list.value.notes = []
+    await deleteAllNotes(authStore.token, l.id)
+    l.notes = []
   }
   const cancelButton = document.getElementById("clear-notes-cancel-button") as HTMLButtonElement
   cancelButton.onclick = async () => {
@@ -86,32 +87,6 @@ async function createNoteAndRefresh() {
   creatingNote.value = false
   newNoteText.value = ""
   list.value = await getNoteList(authStore.token, list.value.id)
-}
-
-function printList() {
-  if (!list.value) return
-  const l: NoteList = list.value
-  const header = `<h1>${l.name}</h1>`
-  const description = `<p>${l.description}</p>`
-  let checkboxList = `<div>`
-  for (let i = 0; i < l.notes.length; i++) {
-    const note = l.notes[i]
-    checkboxList += `<input type="checkbox" id="note-${i}"><label for="note-${i}">${note.content}</label><br/>`
-  }
-  checkboxList += `</div>`
-  const w = window.open()
-  const html = `
-<!DOCTYPE HTML>
-<html lang='en'>
-<body>
-${header}
-${description}
-${checkboxList}
-</body>
-</html>
-`
-  w.document.write(html)
-  w.window.print()
 }
 </script>
 
@@ -154,9 +129,7 @@ ${checkboxList}
       <em>There are no notes in this list.</em> <button @click="toggleCreatingNewNote()">Add one!</button>
     </p>
 
-    <div class="buttons-list">
-      <button @click="printList()" v-if="list.notes.length > 0">Print this list</button>
-    </div>
+    <RouterLink :to="'/lists/' + list.id + '/print'" target="_blank">Print this list</RouterLink>
 
     <dialog id="list-delete-dialog">
       <form method="dialog">
