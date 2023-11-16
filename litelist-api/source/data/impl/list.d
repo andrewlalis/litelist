@@ -72,6 +72,13 @@ class SqliteNoteListDataSource : NoteListDataSource {
         db.commit();
     }
 
+    void deleteAllNotes(string username, ulong id) {
+        Database db = getDb(username);
+        db.begin();
+        db.execute("DELETE FROM note WHERE note_list_id = ?", id);
+        db.commit();
+    }
+
     NoteList updateNoteList(string username, ulong id, NoteList newData) {
         Database db = getDb(username);
         ResultRange result = db.execute("SELECT * FROM note_list WHERE id = ?", id);

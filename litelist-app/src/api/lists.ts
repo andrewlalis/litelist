@@ -77,3 +77,10 @@ export async function deleteNote(token: string, listId: number, id: number): Pro
         headers: {"Authorization": "Bearer " + token}
     })
 }
+
+export async function deleteAllNotes(token: string, listId: number): Promise<void> {
+    await fetch(API_URL + "/lists/" + listId + "/notes", {
+        method: "DELETE",
+        headers: {"Authorization": "Bearer " + token}
+    })
+}

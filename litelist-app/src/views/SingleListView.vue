@@ -2,7 +2,7 @@
 import type {NoteList} from "@/api/lists";
 import {nextTick, onMounted, ref, type Ref} from "vue";
 import {useAuthStore} from "@/stores/auth";
-import {createNote, deleteNote, deleteNoteList, getNoteList} from "@/api/lists";
+import {createNote, deleteAllNotes, deleteNote, deleteNoteList, getNoteList} from "@/api/lists";
 import {useRoute, useRouter} from "vue-router";
 import PageContainer from "@/components/PageContainer.vue";
 import LogOutButton from "@/components/LogOutButton.vue";
@@ -64,12 +64,54 @@ function toggleCreatingNewNote() {
   }
 }
 
+async function clearList() {
+  if (!list.value) return
+  const dialog = document.getElementById("list-clear-notes-dialog") as HTMLDialogElement
+  dialog.showModal()
+  const confirmButton = document.getElementById("clear-notes-confirm-button") as HTMLButtonElement
+  confirmButton.onclick = async () => {
+    dialog.close()
+    await deleteAllNotes(authStore.token, list.value.id)
+    list.value.notes = []
+  }
+  const cancelButton = document.getElementById("clear-notes-cancel-button") as HTMLButtonElement
+  cancelButton.onclick = async () => {
+    dialog.close()
+  }
+}
+
 async function createNoteAndRefresh() {
   if (!list.value) return
   await createNote(authStore.token, list.value.id, newNoteText.value)
   creatingNote.value = false
   newNoteText.value = ""
   list.value = await getNoteList(authStore.token, list.value.id)
+}
+
+function printList() {
+  if (!list.value) return
+  const l: NoteList = list.value
+  const header = `<h1>${l.name}</h1>`
+  const description = `<p>${l.description}</p>`
+  let checkboxList = `<div>`
+  for (let i = 0; i < l.notes.length; i++) {
+    const note = l.notes[i]
+    checkboxList += `<input type="checkbox" id="note-${i}"><label for="note-${i}">${note.content}</label><br/>`
+  }
+  checkboxList += `</div>`
+  const w = window.open()
+  const html = `
+<!DOCTYPE HTML>
+<html lang='en'>
+<body>
+${header}
+${description}
+${checkboxList}
+</body>
+</html>
+`
+  w.document.write(html)
+  w.window.print()
 }
 </script>
 
@@ -80,9 +122,8 @@ async function createNoteAndRefresh() {
       <p><em v-text="list.description"></em></p>
       <div class="buttons-list">
         <button @click="toggleCreatingNewNote()">Add Note</button>
-        <button @click="deleteList(list.id)">
-          Delete this List
-        </button>
+        <button @click="clearList()" v-if="list.notes.length > 0">Clear Notes</button>
+        <button @click="deleteList(list.id)">Delete this List</button>
         <button @click="router.push('/lists')">All Lists</button>
         <LogOutButton/>
       </div>
@@ -113,6 +154,10 @@ async function createNoteAndRefresh() {
       <em>There are no notes in this list.</em> <button @click="toggleCreatingNewNote()">Add one!</button>
     </p>
 
+    <div class="buttons-list">
+      <button @click="printList()" v-if="list.notes.length > 0">Print this list</button>
+    </div>
+
     <dialog id="list-delete-dialog">
       <form method="dialog">
         <p>
@@ -121,6 +166,18 @@ async function createNoteAndRefresh() {
         <div>
           <button id="delete-cancel-button" value="cancel" formmethod="dialog">Cancel</button>
           <button id="delete-confirm-button" value="default">Confirm</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="list-clear-notes-dialog">
+      <form method="dialog">
+        <p>
+          Are you sure you want to clear <strong>all</strong> notes from this list?
+        </p>
+        <div>
+          <button id="clear-notes-cancel-button" value="cancel" formmethod="dialog">Cancel</button>
+          <button id="clear-notes-confirm-button" value="default">Confirm</button>
         </div>
       </form>
     </dialog>
@@ -134,6 +191,8 @@ h1 {
 
 .buttons-list button {
   margin-right: 1rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
   font-size: medium;
 }
 

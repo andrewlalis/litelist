@@ -16,7 +16,7 @@ void main() {
  * Returns: The HTTP server to use.
  */
 private HttpServer initServer() {
-	import handy_httpd.handlers.path_delegating_handler;
+	import handy_httpd.handlers.path_handler;
 	import handy_httpd.handlers.filtered_handler;
 	import d_properties;
 	import endpoints.auth;
@@ -59,7 +59,7 @@ private HttpServer initServer() {
 
 	immutable string API_PATH = "/api";
 
-	PathDelegatingHandler mainHandler = new PathDelegatingHandler();
+	PathHandler mainHandler = new PathHandler();
 	mainHandler.addMapping(Method.GET, API_PATH ~ "/status", &handleStatus);
 	mainHandler.addMapping(Method.POST, API_PATH ~ "/register", &createNewUser);
 	mainHandler.addMapping(Method.POST, API_PATH ~ "/login", &handleLogin);
@@ -74,22 +74,23 @@ private HttpServer initServer() {
 	mainHandler.addMapping(Method.OPTIONS, API_PATH ~ "/**", optionsHandler);
 
 	// Separate handler for authenticated paths, protected by a TokenFilter.
-	PathDelegatingHandler authHandler = new PathDelegatingHandler();
+	PathHandler authHandler = new PathHandler();
 	authHandler.addMapping(Method.GET, API_PATH ~ "/me", &getMyUser);
 	authHandler.addMapping(Method.DELETE, API_PATH ~ "/me", &deleteMyUser);
 	authHandler.addMapping(Method.GET, API_PATH ~ "/renew-token", &renewToken);
 
 	authHandler.addMapping(Method.GET, API_PATH ~ "/lists", &getNoteLists);
 	authHandler.addMapping(Method.POST, API_PATH ~ "/lists", &createNoteList);
-	authHandler.addMapping(Method.GET, API_PATH ~ "/lists/{id}", &getNoteList);
-	authHandler.addMapping(Method.DELETE, API_PATH ~ "/lists/{id}", &deleteNoteList);
-	authHandler.addMapping(Method.POST, API_PATH ~ "/lists/{listId}/notes", &createNote);
-	authHandler.addMapping(Method.DELETE, API_PATH ~ "/lists/{listId}/notes/{noteId}", &deleteNote);
+	authHandler.addMapping(Method.GET, API_PATH ~ "/lists/:id:ulong", &getNoteList);
+	authHandler.addMapping(Method.DELETE, API_PATH ~ "/lists/:id:ulong", &deleteNoteList);
+	authHandler.addMapping(Method.POST, API_PATH ~ "/lists/:listId:ulong/notes", &createNote);
+	authHandler.addMapping(Method.DELETE, API_PATH ~ "/lists/:listId:ulong/notes/:noteId:ulong", &deleteNote);
+	authHandler.addMapping(Method.DELETE, API_PATH ~ "/lists/:listId:ulong/notes", &deleteAllNotes);
 	HttpRequestFilter tokenFilter = new TokenFilter(loadTokenSecret());
 	HttpRequestFilter adminFilter = new AdminFilter();
 
 	// Separate handler for admin paths, protected by an AdminFilter.
-	PathDelegatingHandler adminHandler = new PathDelegatingHandler();
+	PathHandler adminHandler = new PathHandler();
 	adminHandler.addMapping(Method.GET, API_PATH ~ "/admin/users", &getAllUsers);
 	mainHandler.addMapping(API_PATH ~ "/admin/**", new FilteredRequestHandler(adminHandler, [tokenFilter, adminFilter]));
 

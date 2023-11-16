@@ -81,6 +81,12 @@ void deleteNote(ref HttpRequestContext ctx) {
     noteDataSource.deleteNote(auth.user.username, noteId);
 }
 
+void deleteAllNotes(ref HttpRequestContext ctx) {
+    AuthContext auth = getAuthContextOrThrow(ctx);
+    ulong listId = ctx.request.getPathParamAs!ulong("listId");
+    noteListDataSource.deleteAllNotes(auth.user.username, listId);
+}
+
 private JSONValue serializeList(NoteList list) {
     JSONValue listObj = JSONValue(string[string].init);
     listObj.object["id"] = JSONValue(list.id);
