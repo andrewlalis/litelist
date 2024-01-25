@@ -75,12 +75,12 @@ Nullable!AuthContext validateAuthenticatedRequest(ref HttpRequestContext ctx, in
     import std.typecons;
 
     immutable HEADER_NAME = "Authorization";
-    if (!ctx.request.hasHeader(HEADER_NAME)) {
+    if (!ctx.request.headers.contains(HEADER_NAME)) {
         ctx.response.setStatus(HttpStatus.UNAUTHORIZED);
         ctx.response.writeBodyString("Missing Authorization header.");
         return Nullable!AuthContext.init;
     }
-    string authHeader = ctx.request.getHeader(HEADER_NAME);
+    string authHeader = ctx.request.headers.getFirst(HEADER_NAME).orElse("");
     if (authHeader.length < 7 || authHeader[0 .. 7] != "Bearer ") {
         ctx.response.setStatus(HttpStatus.UNAUTHORIZED);
         ctx.response.writeBodyString("Invalid bearer token authorization header.");
