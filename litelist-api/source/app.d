@@ -3,7 +3,7 @@ import slf4d;
 import slf4d.default_provider;
 
 void main() {
-	auto provider = new shared DefaultProvider(true, Levels.INFO);
+	auto provider = new DefaultProvider(true, Levels.INFO);
 	// provider.getLoggerFactory().setModuleLevelPrefix("handy_httpd", Levels.DEBUG);
 	configureLoggingProvider(provider);
 
@@ -27,10 +27,11 @@ private HttpServer initServer() {
 
 	import auth : TokenFilter, AdminFilter, loadTokenSecret;
 
-	ServerConfig config = ServerConfig.defaultValues();
+	ServerConfig config;
 	config.enableWebSockets = false;
 	config.workerPoolSize = 3;
 	config.connectionQueueSize = 10;
+	config.receiveBufferSize = 4096;
 	bool useCorsHeaders = true;
 	if (exists("application.properties")) {
 		Properties props = Properties("application.properties");
@@ -63,10 +64,6 @@ private HttpServer initServer() {
 	mainHandler.addMapping(Method.GET, API_PATH ~ "/status", &handleStatus);
 	mainHandler.addMapping(Method.POST, API_PATH ~ "/register", &createNewUser);
 	mainHandler.addMapping(Method.POST, API_PATH ~ "/login", &handleLogin);
-	// mainHandler.addMapping(Method.GET, API_PATH ~ "/shutdown", (ref HttpRequestContext ctx) {
-	// 	ctx.response.writeBodyString("Shutting down!");
-	// 	ctx.server.stop();
-	// });
 
 	HttpRequestHandler optionsHandler = toHandler((ref HttpRequestContext ctx) {
 		ctx.response.setStatus(HttpStatus.OK);
@@ -87,14 +84,13 @@ private HttpServer initServer() {
 	authHandler.addMapping(Method.DELETE, API_PATH ~ "/lists/:listId:ulong/notes/:noteId:ulong", &deleteNote);
 	authHandler.addMapping(Method.DELETE, API_PATH ~ "/lists/:listId:ulong/notes", &deleteAllNotes);
 	HttpRequestFilter tokenFilter = new TokenFilter(loadTokenSecret());
-	HttpRequestFilter adminFilter = new AdminFilter();
+	mainHandler.addMapping(API_PATH ~ "/**", new FilteredRequestHandler(authHandler, [tokenFilter]));
 
 	// Separate handler for admin paths, protected by an AdminFilter.
 	PathHandler adminHandler = new PathHandler();
 	adminHandler.addMapping(Method.GET, API_PATH ~ "/admin/users", &getAllUsers);
+	HttpRequestFilter adminFilter = new AdminFilter();
 	mainHandler.addMapping(API_PATH ~ "/admin/**", new FilteredRequestHandler(adminHandler, [tokenFilter, adminFilter]));
-
-	mainHandler.addMapping(API_PATH ~ "/**", new FilteredRequestHandler(authHandler, [tokenFilter]));
 
 	return new HttpServer(mainHandler, config);
 }
