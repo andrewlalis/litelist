@@ -83,14 +83,17 @@ private HttpServer initServer() {
 	authHandler.addMapping(Method.POST, API_PATH ~ "/lists/:listId:ulong/notes", &createNote);
 	authHandler.addMapping(Method.DELETE, API_PATH ~ "/lists/:listId:ulong/notes/:noteId:ulong", &deleteNote);
 	authHandler.addMapping(Method.DELETE, API_PATH ~ "/lists/:listId:ulong/notes", &deleteAllNotes);
-	HttpRequestFilter tokenFilter = new TokenFilter(loadTokenSecret());
-	mainHandler.addMapping(API_PATH ~ "/**", new FilteredRequestHandler(authHandler, [tokenFilter]));
 
 	// Separate handler for admin paths, protected by an AdminFilter.
 	PathHandler adminHandler = new PathHandler();
 	adminHandler.addMapping(Method.GET, API_PATH ~ "/admin/users", &getAllUsers);
+	
 	HttpRequestFilter adminFilter = new AdminFilter();
+	HttpRequestFilter tokenFilter = new TokenFilter(loadTokenSecret());
+
+	// We add the admin mapping first, since the auth mapping would otherwise overshadow it.
 	mainHandler.addMapping(API_PATH ~ "/admin/**", new FilteredRequestHandler(adminHandler, [tokenFilter, adminFilter]));
+	mainHandler.addMapping(API_PATH ~ "/**", new FilteredRequestHandler(authHandler, [tokenFilter]));
 
 	return new HttpServer(mainHandler, config);
 }
